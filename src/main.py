@@ -1,8 +1,9 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
+import math
 
-n_features=9
+n_features=10
 
 n_hidden=10
 
@@ -43,23 +44,48 @@ def read_data(file):
     return df
     
 def main():
+    batch_size = 100
+    epochs = 10
 
     df = read_data("../data/raw_data.csv")
+    print("data read from csv...")
     train_data = df.values
-    print(type(train_data))
-
+    #print(train_data)
+    data_size = len(train_data)
     x,y,pred,loss = nn_model()
-
     optimizer = tf.train.AdamOptimizer(0.5).minimize(loss)
 
     with sess as tf.InteractiveSession:
         tf.global_variables_initializer().run()
         for ep in range(epochs):
-            for i in range(data_size/batch_size):
-                # fil batch_x batch_y
-                loss_val,_ =sess.run([loss,optimizer],feed_dict={x:batch_x,y:batch_y})
-        
-            #y_pred_batch = session.run(y_pred, {x: x_batch})
+            np.random.shuffle(train_data)
+            no_of_batches = math.ceil(data_size/batch_size)
+            batch_no = 1
+            batch_x = np.zeros(shape=(batch_size,n_features), dtype = np.float32)
+            batch_y = np.zeros(shape=(batch_size,1), dtype = np.float32)
+            for i in range(data_size):
+                if batch_no > no_of_batches:
+                    break
+                
+                if ( i % batch_size == 0 ) and ( i != 0 ):
+                    loss_val,_ = sess.run([loss,optimizer],feed_dict={x:batch_x,y:batch_y})
+                    #print(batch_x)
+                    #print(batch_y)
+                    batch_no = batch_no + 1
+                else:
+                    batch_x[i%batch_size] = train_data[i][:-1]
+                    batch_y[i%batch_size] = train_data[i][-1]
+
+            if i % batch_size != 0:
+                lbatch_x = batch_x[:i]
+                lbatch_y = batch_y[:i]
+                loss_val,_ = sess.run([loss,optimizer],feed_dict={x:lbatch_x,y:lbatch_y})
+            
+            """  for i in range(no_of_batches):
+                batch_
+                loss_val,_ =sess.run([loss,optimizer],feed_dict={x:batch_x,y:batch_y}) """
+    
+        #y_pred_batch = session.run(y_pred, {x: x_batch})
         
 
         
