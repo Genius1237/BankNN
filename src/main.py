@@ -4,11 +4,12 @@ import pandas as pd
 import math
 
 n_features=10
-n_hidden=5
-batch_size = 100
-epochs = 50
+n_hidden=20
+batch_size = 64
+epochs = 1000
 tr_test_fraction = 0.7
-validation_tr_fraction = 0.4
+validation_tr_fraction = 0.2
+learning_rate = 0.003
 
 def nn_model():
 
@@ -35,8 +36,8 @@ def nn_model():
 def read_data(file):
     df = pd.read_csv(file)
     df.drop(labels=['RowNumber', 'UID', 'Customer_name'], axis=1, inplace=True)
-    city_map = {'Hyderabad': 100, 'Pilani': 0, 'Goa': -100}
-    gender_map = {'Male': 100, 'Female': -100}
+    city_map = {'Hyderabad': 1, 'Pilani': 2, 'Goa': 3}
+    gender_map = {'Male': -1, 'Female': 1}
     
     nrows = len(df.index)
     city_idx = df.columns.get_loc('City')
@@ -51,39 +52,38 @@ def main():
     print("data read from csv...")
     
     """
-    To partitiion the entire dataset as training and testing data
+    To partition the entire dataset as training and testing data
     """
     data_size = len(df.values)
     train_data_size = math.floor(data_size*tr_test_fraction)
     data = df.values
     #np.random.shuffle(data)
     train_data = data[:train_data_size]
-    test_data = data[train_data_size+1:]
+    test_data = data[train_data_size:]
     train_data_size = len(train_data)
   
     x,y,pred,loss,acc = nn_model()
 
-    optimizer = tf.train.AdamOptimizer(0.001).minimize(loss)
+    optimizer = tf.train.AdamOptimizer(learning_rate).minimize(loss)
 
     with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
         sess.run(tf.local_variables_initializer())
         for ep in range(epochs):
             epoch_loss=0
-            """
-            To segregate data for training the network and data for validation
-            """
+
             np.random.shuffle(train_data)
-            vdata_size = math.floor(validation_tr_fraction*len(train_data))
+            vdata_size = math.floor(validation_tr_fraction*train_data_size)
             vdata = train_data[:vdata_size]
-            tdata = train_data[vdata_size+1:]
+            tdata = train_data[vdata_size:]
             tdata_size = len(tdata)
 
 
-            no_of_batches = math.floor(train_data_size/batch_size)
+            no_of_batches = math.floor(tdata_size/batch_size)
             
             batch_x = np.zeros(shape=(batch_size,n_features), dtype = np.float32)
             batch_y = np.zeros(shape=(batch_size,1), dtype = np.float32)
+            
             for i in range(no_of_batches):
                 batch_x=tdata[i*batch_size:(i+1)*batch_size,:-1]
                 batch_y=tdata[i*batch_size:(i+1)*batch_size,-1:]
@@ -93,7 +93,7 @@ def main():
             vloss,vacc=sess.run([loss,acc],feed_dict={x:vdata[:,:-1],y:vdata[:,-1:]})
             
             #print("Epoch Loss:{}".format(epoch_loss),end=' ')
-            print("Validation Loss:{}\tValidation Accurracy:{}".format(vloss,vacc[0]))
+            print("Epoch:{}\tValidation Loss:{}\tValidation Accurracy:{}".format(ep,vloss,vacc[0]))
         
         tloss,tacc=sess.run([loss,acc],feed_dict={x:test_data[:,:-1],y:test_data[:,-1:]})
         print("Test Loss:{}\tTest Accurracy:{}".format(tloss,tacc[0]))
